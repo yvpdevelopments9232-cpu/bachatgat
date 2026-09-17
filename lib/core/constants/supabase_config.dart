@@ -1,0 +1,5 @@
+class SupabaseConfig {
+  static const String url = 'https://iyesjrexmysgswazujnq.supabase.co';
+  static const String anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5ZXNqcmV4bXlzZ3N3YXp1am5xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg5NjYwNzUsImV4cCI6MjEwNDU0MjA3NX0.yOAkaPcyrPB8okLsr-Qew9oujr_SXHiJXHWEbcHy3Yw';
+  static const String serviceRoleKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5ZXNqcmV4bXlzZ3N3YXp1am5xIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4ODk2NjA3NSwiZXhwIjoyMTA0NTQyMDc1fQ.MXcrab8vdfkvec63IQFEO5zJrtOfguBWyIolJbjLx18';
+}
