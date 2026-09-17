@@ -1,4 +1,4 @@
-name: Build macOS & iOS IPA
+name: Build All Editions for Apple (macOS & iOS IPA)
 
 on:
   push:
@@ -6,24 +6,67 @@ on:
   pull_request:
     branches: [ main, master ]
   workflow_dispatch:
-    inputs:
-      target_edition:
-        description: 'Target Edition to build (hybrid, offline, online)'
-        required: true
-        default: 'hybrid'
-        type: choice
-        options:
-          - hybrid
-          - offline
-          - online
 
 jobs:
-  # ==========================================
-  # JOB 1: BUILD MACOS DESKTOP APP (.zip)
-  # ==========================================
-  build-macos:
-    name: Build macOS Application
+  # =========================================================
+  # JOB 1: BUILD ALL 3 IOS EDITIONS IN PARALLEL (HYBRID, OFFLINE, ONLINE)
+  # =========================================================
+  build-ios-ipa:
+    name: Build iOS IPA (${{ matrix.edition }})
     runs-on: macos-14
+    strategy:
+      matrix:
+        edition: [hybrid, offline, online]
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Install Flutter Dependencies
+        run: flutter pub get
+
+      - name: Compile iOS Release (${{ matrix.edition }})
+        run: |
+          if [ "${{ matrix.edition }}" = "hybrid" ]; then
+            flutter build ios --release --no-codesign -t lib/main_hybrid.dart
+          elif [ "${{ matrix.edition }}" = "offline" ]; then
+            flutter build ios --release --no-codesign -t lib/main_offline.dart
+          else
+            flutter build ios --release --no-codesign -t lib/main.dart
+          fi
+
+      - name: Package Runner.app into installable .ipa
+        run: |
+          mkdir -p build/ios/ipa_payload/Payload
+          cp -r build/ios/iphoneos/Runner.app build/ios/ipa_payload/Payload/
+          cd build/ios/ipa_payload
+          zip -r -y "SakhiBachatGat_${{ matrix.edition }}.ipa" Payload
+          mkdir -p ../../../output_ios
+          mv "SakhiBachatGat_${{ matrix.edition }}.ipa" ../../../output_ios/
+          cd ../../../
+          ls -lh output_ios/
+
+      - name: Upload iOS ${{ matrix.edition }} IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SakhiBachatGat_iOS_${{ matrix.edition }}_IPA
+          path: output_ios/SakhiBachatGat_${{ matrix.edition }}.ipa
+          retention-days: 14
+
+  # =========================================================
+  # JOB 2: BUILD ALL 3 MACOS EDITIONS IN PARALLEL (HYBRID, OFFLINE, ONLINE)
+  # =========================================================
+  build-macos:
+    name: Build macOS (${{ matrix.edition }})
+    runs-on: macos-14
+    strategy:
+      matrix:
+        edition: [hybrid, offline, online]
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -40,84 +83,30 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Flutter Doctor Check
-        run: flutter doctor -v
-
       - name: Install Flutter Dependencies
         run: flutter pub get
 
-      - name: Build macOS Release Bundle
+      - name: Compile macOS Release (${{ matrix.edition }})
         run: |
-          EDITION="${{ github.event.inputs.target_edition || 'hybrid' }}"
-          echo "Building macOS for edition: $EDITION"
-          if [ "$EDITION" = "offline" ]; then
-            flutter build macos --release -t lib/main_offline.dart
-          elif [ "$EDITION" = "online" ]; then
-            flutter build macos --release -t lib/main.dart
-          else
+          if [ "${{ matrix.edition }}" = "hybrid" ]; then
             flutter build macos --release -t lib/main_hybrid.dart
+          elif [ "${{ matrix.edition }}" = "offline" ]; then
+            flutter build macos --release -t lib/main_offline.dart
+          else
+            flutter build macos --release -t lib/main.dart
           fi
 
       - name: Package macOS App into ZIP
         run: |
           mkdir -p output_macos
           cd build/macos/Build/Products/Release
-          zip -r -y ../../../../../output_macos/SakhiBachatGat_macOS.zip *.app
+          zip -r -y "../../../../../output_macos/SakhiBachatGat_${{ matrix.edition }}_macOS.zip" *.app
           cd ../../../../../
-          ls -la output_macos/
+          ls -lh output_macos/
 
-      - name: Upload macOS Artifact
+      - name: Upload macOS ${{ matrix.edition }} Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: SakhiBachatGat_macOS
-          path: output_macos/SakhiBachatGat_macOS.zip
-          retention-days: 14
-
-  # ==========================================
-  # JOB 2: BUILD IOS IPA PACKAGE (.ipa)
-  # ==========================================
-  build-ios-ipa:
-    name: Build iOS IPA Package
-    runs-on: macos-14
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Setup Flutter SDK
-        uses: subosito/flutter-action@v2
-        with:
-          channel: 'stable'
-          cache: true
-
-      - name: Install Flutter Dependencies
-        run: flutter pub get
-
-      - name: Build iOS Application (Release, Unsigned)
-        run: |
-          EDITION="${{ github.event.inputs.target_edition || 'hybrid' }}"
-          echo "Building iOS for edition: $EDITION"
-          if [ "$EDITION" = "offline" ]; then
-            flutter build ios --release --no-codesign -t lib/main_offline.dart
-          elif [ "$EDITION" = "online" ]; then
-            flutter build ios --release --no-codesign -t lib/main.dart
-          else
-            flutter build ios --release --no-codesign -t lib/main_hybrid.dart
-          fi
-
-      - name: Package Runner.app into installable .ipa
-        run: |
-          mkdir -p build/ios/ipa_payload/Payload
-          cp -r build/ios/iphoneos/Runner.app build/ios/ipa_payload/Payload/
-          cd build/ios/ipa_payload
-          zip -r -y SakhiBachatGat.ipa Payload
-          mkdir -p ../../../output_ios
-          mv SakhiBachatGat.ipa ../../../output_ios/
-          cd ../../../
-          ls -lh output_ios/
-
-      - name: Upload iOS IPA Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: SakhiBachatGat_iOS_IPA
-          path: output_ios/SakhiBachatGat.ipa
+          name: SakhiBachatGat_macOS_${{ matrix.edition }}
+          path: output_macos/SakhiBachatGat_${{ matrix.edition }}_macOS.zip
           retention-days: 14
